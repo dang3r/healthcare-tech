@@ -54,11 +54,11 @@ def main(gcs_bucket: str, gcp_project: str, dst_folder: str, since: str, dry_run
     # Get list of already downloaded documents
     client = storage.Client(project=gcp_project)
     downloaded_device_ids = set([blob.name[4:-4] for blob in client.list_blobs(gcs_bucket, prefix='raw')])
-#    df = pd.read_csv("https://www.accessdata.fda.gov/premarket/ftparea/pmn96cur.zip", error_bad_lines=False, delimiter="|", encoding="latin")
 
     # Get list of new documents to download
     since_dt = datetime.strptime(since, "%Y-%m-%d")
-    df = pd.read_csv("pmn96cur.zip", error_bad_lines=False, delimiter="|", encoding="latin")
+#    df = pd.read_csv("pmn96cur.zip", error_bad_lines=False, delimiter="|", encoding="latin")
+    df = pd.read_csv("https://www.accessdata.fda.gov/premarket/ftparea/pmn96cur.zip", error_bad_lines=False, delimiter="|", encoding="latin")
     df["url"] = df.apply(lambda x: url(x["KNUMBER"], x["DATERECEIVED"]), axis=1)
     df['decision_date'] =  pd.to_datetime(df["DECISIONDATE"])
     df = df[(~df.KNUMBER.isin(downloaded_device_ids)) & (df.decision_date > since_dt)]
