@@ -34,9 +34,13 @@ jobs:
     - name: Download new fda device documents
       run: |
         cd medical-device-predicate-graph
-        python3 download_device_documents.py --since=2021-12-01 --dst-folder=raw
+        python3 download_device_documents.py --since=2022-01-31 --dst-folder=raw --dry-run=False
     - uses: 'google-github-actions/upload-cloud-storage@v0'
       with:
         path: 'medical-device-predicate-graph/raw'
         destination: 'fda_devices/raw'
         parent: 'false'
+    - id: 'uploaded-files'
+      env:
+        file: '${{ steps.upload-file.outputs.uploaded }}'
+      run: 'cat $file'
