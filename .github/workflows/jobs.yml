@@ -40,6 +40,7 @@ jobs:
     - name: Download new fda device documents
       run: |
         cd medical-device-predicate-graph
+        export SINCE_DATE=${SINCE_DATE:-'2022-01-01'}
         python3 download_device_documents.py --since="$SINCE_DATE" --dst-folder=raw --dry-run=False
       env:
         SINCE_DATE: ${{ github.event.inputs.since_date }}
