@@ -25,7 +25,7 @@ resource "google_project_iam_binding" "gcs_read" {
   condition {
     title       = "Listing files from GCS"
     description = "Only listing files from a specific bucket"
-    expression  = "resource.type == 'storage.googleapis.com/Bucket' && resource.name.startsWith('projects/_/fda_devices/raw')"
+    expression  = "resource.name.startsWith('projects/health-tech-340502/buckets/fda_devices')"
   }
 }
 
@@ -37,6 +37,6 @@ resource "google_project_iam_binding" "gcs_write" {
   condition {
     title       = "Upload files to GCS"
     description = "Only upload files to specific bucket"
-    expression  = "resource.type == 'storage.googleapis.com/Bucket' && resource.name.startsWith('projects/_/fda_devices/raw')"
+    expression  = "resource.name.startsWith('projects/health-tech-340502/fda_devices/raw')"
   }
 }
