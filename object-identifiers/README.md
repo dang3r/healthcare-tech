@@ -26,6 +26,7 @@ Canadian Open System Connection Registration Authority
 - I found this link from an LDP side that gives a link for requesting one from the IANA
 https://ldapwiki.com/wiki/How%20To%20Get%20Your%20Own%20OID
 - I have officially submitted for one! My request is : REQUEST-98457
+- I got it! My official OID is 1.3.6.1.4.1.58139
 
 
  ### Contact ANSI for their org list
