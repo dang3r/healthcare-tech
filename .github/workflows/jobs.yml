@@ -8,7 +8,13 @@ on:
     branches: [ master ]
   schedule:
     - cron: '30 17 * * *'
-
+  workflow_dispatch:
+    inputs:
+      since_date:
+        description: 'The date to check from for newly posted devices'
+        required: true
+        default: '2022-01-01'
+        type: string
 jobs:
   build:
     permissions:
@@ -34,7 +40,11 @@ jobs:
     - name: Download new fda device documents
       run: |
         cd medical-device-predicate-graph
-        python3 download_device_documents.py --since=2021-10-01 --dst-folder=raw --dry-run=False
+        export MONTH_AGO=$(date -d "-1 month" +%Y-%m-%d)
+        if [ -z "$SINCE_DATE" ]; then export SINCE_DATE="$MONTH_AGO"; fi
+        python3 download_device_documents.py --since="$SINCE_DATE" --dst-folder=raw --dry-run=False
+      env:
+        SINCE_DATE: ${{ github.event.inputs.since_date }}
     - uses: 'google-github-actions/upload-cloud-storage@v0'
       with:
         path: 'medical-device-predicate-graph/raw'

@@ -63,7 +63,6 @@ def main(gcs_bucket: str, gcp_project: str, dst_folder: str, since: str, dry_run
     df['decision_date'] =  pd.to_datetime(df["DECISIONDATE"])
     df = df[(~df.KNUMBER.isin(downloaded_device_ids)) & (df.decision_date > since_dt)]
        
-
     print("{} documents already downloaded.".format(len(downloaded_device_ids)))
     print("Beginning download of {} pdfs".format(len(df)))
 
