@@ -56,7 +56,7 @@ jobs:
         path: 'medical-device-predicate-graph/raw'
         destination: 'fda_devices/raw'
         parent: 'false'
-    - id: Upload device summary text files to Google Cloud storage
+    - name: Upload device summary text files to Google Cloud storage
       uses: 'google-github-actions/upload-cloud-storage@v0'
       with:
         path: 'medical-device-predicate-graph/text'
