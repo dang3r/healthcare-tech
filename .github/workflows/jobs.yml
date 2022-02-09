@@ -38,7 +38,7 @@ jobs:
       uses: 'google-github-actions/auth@v0'
       with:
         credentials_json: '${{ secrets.gcp_credentials }}'
-    - name: Download new fda device documents
+    - name: Download new fda device summary documents
       run: |
         cd medical-device-predicate-graph
         export MONTH_AGO=$(date -d "-1 month" +%Y-%m-%d)
@@ -46,8 +46,19 @@ jobs:
         python3 download_device_documents.py --since="$SINCE_DATE" --dst-folder=raw --dry-run=False
       env:
         SINCE_DATE: ${{ github.event.inputs.since_date }}
-    - uses: 'google-github-actions/upload-cloud-storage@v0'
+    - name: Convert new fda device summary documents to text
+      run: |
+        cd medical-device-predicate-graph
+        python3 convert_pdf_to_text.py --src-dir=raw --dst-dir=text --dry-run=False
+    - id: Upload device summary PDFs to Google Cloud storage
+      uses: 'google-github-actions/upload-cloud-storage@v0'
       with:
         path: 'medical-device-predicate-graph/raw'
         destination: 'fda_devices/raw'
+        parent: 'false'
+    - id: Upload device summary text files to Google Cloud storage
+      uses: 'google-github-actions/upload-cloud-storage@v0'
+      with:
+        path: 'medical-device-predicate-graph/text'
+        destination: 'fda_devices/text'
         parent: 'false'
