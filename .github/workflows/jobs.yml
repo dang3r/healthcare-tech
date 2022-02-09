@@ -50,7 +50,7 @@ jobs:
       run: |
         cd medical-device-predicate-graph
         python3 convert_pdf_to_text.py --src-dir=raw --dst-dir=text --dry-run=False
-    - id: Upload device summary PDFs to Google Cloud storage
+    - name: Upload device summary PDFs to Google Cloud storage
       uses: 'google-github-actions/upload-cloud-storage@v0'
       with:
         path: 'medical-device-predicate-graph/raw'
