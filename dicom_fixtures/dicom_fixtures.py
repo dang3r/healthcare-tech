@@ -1,3 +1,4 @@
+import glob
 import string
 from dataclasses import dataclass
 from datetime import datetime
@@ -20,6 +21,12 @@ def uid() -> str:
 class ImageFactory(factory.Factory):
     class Meta:
         model = pydicom.Dataset
+        strategy = factory.BUILD_STRATEGY
+        # exclude = ("file",)
+
+    _file = factory.Iterator(
+        glob.glob("/Users/dcardoza/dev/healthcare-tech/dicom_fixtures/images/*")
+    )
 
     PatientID = factory.LazyFunction(
         lambda: "".join(string.ascii_lowercase[randint(0, 25)] for _ in range(10))
@@ -39,67 +46,54 @@ class ImageFactory(factory.Factory):
     Laterality = "R"
 
     @classmethod
-    def _create(cls, model_class, *args, **kwargs):
+    def _build(cls, model_class, *args, **kwargs):
         """Override the default ``_create`` with our custom call."""
         d = model_class()
         for k, v in kwargs.items():
-            setattr(d, k, v)
-        return d
+            if not k.startswith("_"):
+                setattr(d, k, v)
 
-    @factory.post_generation
-    def _image(self, create, extracted, **kwargs):
-        im_frame = Image.open(
-            # "/Users/dcardoza/Dropbox/Media/Pictures/wallpaper//cyberpunk_2077___4k_wallpaper_2018___game_info__by_nurboyxvi-dcdx4ew.png"
-            "/Users/dcardoza/Dropbox/Media/Pictures/wallpaper//mjwnegnk4h9aai6sw5p7.png"
-        )  # the PNG file to be replace
-        print(im_frame)
-        if im_frame.mode == "L":
-            # (8-bit pixels, black and white)
-            np_frame = np.array(im_frame.getdata(), dtype=np.uint8)
-            self.Rows = im_frame.height
-            self.Columns = im_frame.width
-            self.PhotometricInterpretation = "MONOCHROME1"
-            self.SamplesPerPixel = 1
-            self.BitsStored = 8
-            self.BitsAllocated = 8
-            self.HighBit = 7
-            self.PixelRepresentation = 0
-            self.PixelData = np_frame.tobytes()
-        elif im_frame.mode == "RGBA":
-            # RGBA (4x8-bit pixels, true colour with transparency mask)
-            np_frame = np.array(im_frame.getdata(), dtype=np.uint8)[:, :3]
-            self.Rows = im_frame.height
-            self.Columns = im_frame.width
-            self.PhotometricInterpretation = "RGB"
-            self.SamplesPerPixel = 3
-            self.BitsStored = 8
-            self.BitsAllocated = 8
-            self.HighBit = 7
-            self.PixelRepresentation = 0
-            self.PlanarConfiguration = 0
-            self.PixelData = np_frame.tobytes()
-        elif im_frame.mode == "RGB":
-            # RGBA (4x8-bit pixels, true colour with transparency mask)
-            np_frame = np.array(im_frame.getdata(), dtype=np.uint8)
-            self.Rows = im_frame.height
-            self.Columns = im_frame.width
-            self.PhotometricInterpretation = "RGB"
-            self.SamplesPerPixel = 3
-            self.BitsStored = 8
-            self.BitsAllocated = 8
-            self.HighBit = 7
-            self.PixelRepresentation = 0
-            self.PlanarConfiguration = 0
-            self.PixelData = np_frame.tobytes()
-        self.file_meta = pydicom.Dataset()
-        self.file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.7"
-        self.file_meta.TransferSyntaxUID = "1.2.840.10008.1.2.1"
-        self.file_meta.ImplementationVersionName = "DCARDOZA"
-        self.file_meta.ImplementationClassUID = "1.3.6.1.4.1.58139"
-        self.file_meta.SourceApplicationEntityTitle = "DICOM_FIXTURES"
-        self.is_implicit_vr = True
-        self.is_little_endian = True
-        return None
+        file = kwargs.get("_file")
+        if file:
+            im_frame = Image.open(file)
+            if im_frame.mode == "L":
+                # (8-bit pixels, black and white)
+                np_frame = np.array(im_frame.getdata(), dtype=np.uint8)
+                d.Rows = im_frame.height
+                d.Columns = im_frame.width
+                d.PhotometricInterpretation = "MONOCHROME1"
+                d.SamplesPerPixel = 1
+                d.BitsStored = 8
+                d.BitsAllocated = 8
+                d.HighBit = 7
+                d.PixelRepresentation = 0
+                d.PixelData = np_frame.tobytes()
+            elif im_frame.mode == "RGBA" or im_frame.mode == "RGB":
+                if im_frame.mode == "RGBA":
+                    np_frame = np.array(im_frame.getdata(), dtype=np.uint8)[:, :3]
+                elif im_frame.mode == "RGB":
+                    np_frame = np.array(im_frame.getdata(), dtype=np.uint8)
+                d.Rows = im_frame.height
+                d.Columns = im_frame.width
+                d.PhotometricInterpretation = "RGB"
+                d.SamplesPerPixel = 3
+                d.BitsStored = 8
+                d.BitsAllocated = 8
+                d.HighBit = 7
+                d.PixelRepresentation = 0
+                d.PlanarConfiguration = 0
+                d.PixelData = np_frame.tobytes()
+            else:
+                print("NOT SETTING PIXEL DATA")
+        d.file_meta = pydicom.Dataset()
+        d.file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.7"
+        d.file_meta.TransferSyntaxUID = "1.2.840.10008.1.2.1"
+        d.file_meta.ImplementationVersionName = "DCARDOZA"
+        d.file_meta.ImplementationClassUID = "1.3.6.1.4.1.58139"
+        d.file_meta.SourceApplicationEntityTitle = "DICOM_FIXTURES"
+        d.is_implicit_vr = True
+        d.is_little_endian = True
+        return d
 
 
 @dataclass
@@ -187,6 +181,6 @@ class MammographyExamFactory(ExamFactory):
     ManufacturerModelName = factory.Iterator(["Lorad"])
 
 
-for i, img in enumerate(MammographyExamFactory(num_images=2).images):
+for i, img in enumerate(MammographyExamFactory(num_images=8).images):
     img: pydicom.Dataset
     img.save_as(f"image_{i}.dcm", write_like_original=False)
