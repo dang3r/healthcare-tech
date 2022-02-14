@@ -181,6 +181,6 @@ class MammographyExamFactory(ExamFactory):
     ManufacturerModelName = factory.Iterator(["Lorad"])
 
 
-for i, img in enumerate(MammographyExamFactory(num_images=8).images):
+for i, img in enumerate(MammographyExamFactory(num_images=12).images):
     img: pydicom.Dataset
     img.save_as(f"image_{i}.dcm", write_like_original=False)
