@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from hashlib import md5
 from random import randint
+from re import I
 
 import factory
 import numpy as np
@@ -23,7 +24,6 @@ class ImageFactory(factory.Factory):
     class Meta:
         model = pydicom.Dataset
         strategy = factory.BUILD_STRATEGY
-        # exclude = ("file",)
 
     image_path = factory.Iterator(
         glob.glob("/Users/dcardoza/dev/healthcare-tech/dicom_fixtures/images/*")
@@ -32,8 +32,8 @@ class ImageFactory(factory.Factory):
     PatientID = factory.LazyFunction(
         lambda: "".join(string.ascii_lowercase[randint(0, 25)] for _ in range(10))
     )
-    PatientName = factory.Faker("name")
-    AccessionNumber = faker.md5(raw_output=False)
+    PatientName = factory.LazyAttribute(faker("name"))
+    AccessionNumber = factory.LazyAttribtue(faker.md5(raw_output=False))
     SOPInstanceUID = factory.LazyFunction(uid)
     SeriesInstanceUID = factory.LazyFunction(uid)
     StudyInstanceUID = factory.LazyFunction(uid)
@@ -115,60 +115,81 @@ class ExamFactory(factory.Factory):
         strategy = factory.BUILD_STRATEGY
 
     num_images = 4
-
     image_dir = "/Users/dcardoza/dev/healthcare-tech/dicom_fixtures/images"
     image_paths = factory.LazyAttribute(lambda o: glob.glob(o.image_dir + "/*"))
 
-    image_attrs = factory.Dict(
+    default_image_attrs = factory.Dict(
         {
-            "PatientID": faker.md5(raw_output=False),
-            "PatientName": faker.name(),
-            "PatientBirthDate": faker.date_of_birth(minimum_age=45, maximum_age=90).strftime(
-                "%Y%m%d"
+            "PatientID": factory.LazyAttribute(lambda _: faker.md5(raw_output=False)),
+            "PatientName": factory.LazyAttribute(lambda _: faker.name()),
+            "PatientBirthDate": factory.LazyAttribute(
+                lambda _: faker.date_of_birth(minimum_age=45, maximum_age=90).strftime("%Y%m%d")
             ),
-            "AccessionNumber": faker.md5(raw_output=False),
+            "AccessionNumber": factory.LazyAttribute(lambda _: faker.md5(raw_output=False)),
             "StudyInstanceUID": factory.LazyFunction(uid),
             "Manufacturer": factory.Iterator(["HOLOGIC, INC.", "GE", "SIEMENS"]),
             "ManufacturerModelName": factory.Iterator(["Lorad"]),
             "Modality": factory.Iterator(["MG", "XR", "CT"]),
-            "StudyDate": faker.date_between(
-                datetime.strptime("2010-01-01", "%Y-%m-%d"),
-                datetime.strptime("2022-01-01", "%Y-%m-%d"),
-            ).strftime("%Y%m%d"),
-            "ReferringPhysicianName": faker.name(),
+            "StudyDate": factory.LazyAttribute(
+                lambda _: faker.date_between(
+                    datetime.strptime("2010-01-01", "%Y-%m-%d"),
+                    datetime.strptime("2022-01-01", "%Y-%m-%d"),
+                ).strftime("%Y%m%d")
+            ),
+            "ReferringPhysicianName": factory.LazyAttribute(lambda _: faker.name()),
             "StudyDescription": factory.Iterator(
                 ["XRAY IMAGING", "PET SCAN LEFT SIDE", "SPINAL IMAGING LOWER"]
             ),
-            "StudyTime": faker.time_object().strftime("%H%M%S") + ".000000",
+            "StudyTime": factory.LazyAttribute(
+                lambda _: faker.time_object().strftime("%H%M%S") + ".000000"
+            ),
         }
     )
 
-    images = factory.LazyAttribute(
-        lambda o: [
+    image_attrs: dict = None
+
+    @classmethod
+    def _build(cls, model_class, *args, **kwargs):
+        model = model_class()
+        attrs = {**kwargs.get("default_image_attrs"), **kwargs.get("image_attrs", {})}
+        model.image_paths = kwargs["image_paths"]
+        model.num_images = kwargs["num_images"]
+        model.images = [
             ImageFactory(
-                image_path=o.image_paths[i % len(o.image_paths)],
-                **o.image_attrs,
+                image_path=model.image_paths[i % len(model.image_paths)],
+                **attrs,
             )
-            for i in range(o.num_images)
+            for i in range(model.num_images)
         ]
-    )
+        return model
 
 
-class MammographyExamFactory(ExamFactory):
-    num_images = 4
-
-    # Exam Fields
-
-    Modality = "MG"
-    StudyDescription = "BREAST IMAGING TOMOSYNTHESIS"
-
-    # Imaging Fields
-    Manufacturer = factory.Iterator(["HOLOGIC, INC.", "GE", "SIEMENS"])
-    ManufacturerModelName = factory.Iterator(["Lorad"])
+# class MammographyExamFactory(ExamFactory):
+#    num_images = 4
+#
+#    # Exam Fields
+#
+#    Modality = "MG"
+#    StudyDescription = "BREAST IMAGING TOMOSYNTHESIS"
+#
+#    # Imaging Fields
+#    Manufacturer = factory.Iterator(["HOLOGIC, INC.", "GE", "SIEMENS"])
+#    ManufacturerModelName = factory.Iterator(["Lorad"])
 
 
 for i, img in enumerate(
-    ExamFactory(num_images=16, image_dir="/Users/dcardoza/Dropbox/Media/Pictures/cyberpunk").images
+    ExamFactory(
+        num_images=1,
+        image_dir="/Users/dcardoza/Dropbox/Media/Pictures/cyberpunk",
+        image_attrs={"PatientID": "12345"},
+    ).images
 ):
     img: pydicom.Dataset
+    print(img)
     img.save_as(f"output/image_{i}.dcm", write_like_original=False)
+
+print(ExamFactory(num_images=1).images[0])
+
+im = ImageFactory()
+print(ImageFactory())
+print(ImageFactory())
