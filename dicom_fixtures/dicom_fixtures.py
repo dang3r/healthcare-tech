@@ -2,6 +2,7 @@ import glob
 import string
 from dataclasses import dataclass
 from datetime import datetime
+from hashlib import md5
 from random import randint
 
 import factory
@@ -24,7 +25,7 @@ class ImageFactory(factory.Factory):
         strategy = factory.BUILD_STRATEGY
         # exclude = ("file",)
 
-    _file = factory.Iterator(
+    image_path = factory.Iterator(
         glob.glob("/Users/dcardoza/dev/healthcare-tech/dicom_fixtures/images/*")
     )
 
@@ -32,7 +33,7 @@ class ImageFactory(factory.Factory):
         lambda: "".join(string.ascii_lowercase[randint(0, 25)] for _ in range(10))
     )
     PatientName = factory.Faker("name")
-    AccessionNumber = "123"
+    AccessionNumber = faker.md5(raw_output=False)
     SOPInstanceUID = factory.LazyFunction(uid)
     SeriesInstanceUID = factory.LazyFunction(uid)
     StudyInstanceUID = factory.LazyFunction(uid)
@@ -44,6 +45,7 @@ class ImageFactory(factory.Factory):
     InstanceNumber = "3"
     StudyTime = "000000.000000"
     Laterality = "R"
+    Modality = ""
 
     @classmethod
     def _build(cls, model_class, *args, **kwargs):
@@ -53,7 +55,7 @@ class ImageFactory(factory.Factory):
             if not k.startswith("_"):
                 setattr(d, k, v)
 
-        file = kwargs.get("_file")
+        file = kwargs.get("image_path")
         if file:
             im_frame = Image.open(file)
             if im_frame.mode == "L":
@@ -100,69 +102,52 @@ class ImageFactory(factory.Factory):
 class Exam:
     num_images: int = 0
     images: list = None
+    image_dir: str = ""
+    image_paths: list = None
 
-    # Patient Information
-    PatientID: str = ""
-    PatientName: str = ""
-    PatientBirthDate: str = ""
-
-    # Exam Information
-    AccessionNumber: str = "123"
-    Modality: str = ""
-    ReferringPhysicianName: str = ""
-    StudyDescription: str = ""
-    StudyDate: str = ""
-    StudyTime: str = ""
-
-    # Imaging Information
-    Manufacturer: str = ""
-    ManufacturerModelName: str = ""
-    StudyInstanceUID: str = ""
+    image_attrs: dict = None
+    images: list = None
 
 
 class ExamFactory(factory.Factory):
     class Meta:
         model = Exam
+        strategy = factory.BUILD_STRATEGY
 
     num_images = 4
-    # img_paths: list = []
 
-    PatientID = factory.LazyFunction(
-        lambda: "".join(string.ascii_lowercase[randint(0, 25)] for _ in range(10))
+    image_dir = "/Users/dcardoza/dev/healthcare-tech/dicom_fixtures/images"
+    image_paths = factory.LazyAttribute(lambda o: glob.glob(o.image_dir + "/*"))
+
+    image_attrs = factory.Dict(
+        {
+            "PatientID": faker.md5(raw_output=False),
+            "PatientName": faker.name(),
+            "PatientBirthDate": faker.date_of_birth(minimum_age=45, maximum_age=90).strftime(
+                "%Y%m%d"
+            ),
+            "AccessionNumber": faker.md5(raw_output=False),
+            "StudyInstanceUID": factory.LazyFunction(uid),
+            "Manufacturer": factory.Iterator(["HOLOGIC, INC.", "GE", "SIEMENS"]),
+            "ManufacturerModelName": factory.Iterator(["Lorad"]),
+            "Modality": factory.Iterator(["MG", "XR", "CT"]),
+            "StudyDate": faker.date_between(
+                datetime.strptime("2010-01-01", "%Y-%m-%d"),
+                datetime.strptime("2022-01-01", "%Y-%m-%d"),
+            ).strftime("%Y%m%d"),
+            "ReferringPhysicianName": faker.name(),
+            "StudyDescription": factory.Iterator(
+                ["XRAY IMAGING", "PET SCAN LEFT SIDE", "SPINAL IMAGING LOWER"]
+            ),
+            "StudyTime": faker.time_object().strftime("%H%M%S") + ".000000",
+        }
     )
-    PatientName = factory.Faker("name")
-    PatientBirthDate = faker.date_of_birth(minimum_age=45, maximum_age=90).strftime("%Y%m%d")
-    AccessionNumber = "123"
-    StudyInstanceUID = factory.LazyFunction(uid)
-    Manufacturer = factory.Iterator(["HOLOGIC, INC.", "GE", "SIEMENS"])
-    ManufacturerModelName = factory.Iterator(["Lorad"])
-    Modality = factory.Iterator(["MG", "XR", "CT"])
-    #    StudyDate = "20210101"
-    StudyDate = faker.date_between(
-        datetime.strptime("2010-01-01", "%Y-%m-%d"),
-        datetime.strptime("2022-01-01", "%Y-%m-%d"),
-    ).strftime("%Y%m%d")
-    ReferringPhysicianName = factory.Faker("name")
-    StudyDescription = factory.Iterator(
-        ["XRAY IMAGING", "PET SCAN LEFT SIDE", "SPINAL IMAGING LOWER"]
-    )
-    StudyTime = faker.time_object().strftime("%H%M%S") + ".000000"
 
     images = factory.LazyAttribute(
         lambda o: [
             ImageFactory(
-                PatientID=o.PatientID,
-                PatientName=o.PatientName,
-                PatientBirthDate=o.PatientBirthDate,
-                AccessionNumber=o.AccessionNumber,
-                StudyInstanceUID=o.StudyInstanceUID,
-                Manufacturer=o.Manufacturer,
-                StudyDate=o.StudyDate,
-                StudyDescription=o.StudyDescription,
-                ReferringPhysicianName=o.ReferringPhysicianName,
-                Modality=o.Modality,
-                SeriesNumber=str(i),
-                StudyTime=o.StudyTime,
+                image_path=o.image_paths[i % len(o.image_paths)],
+                **o.image_attrs,
             )
             for i in range(o.num_images)
         ]
@@ -173,6 +158,7 @@ class MammographyExamFactory(ExamFactory):
     num_images = 4
 
     # Exam Fields
+
     Modality = "MG"
     StudyDescription = "BREAST IMAGING TOMOSYNTHESIS"
 
@@ -181,6 +167,8 @@ class MammographyExamFactory(ExamFactory):
     ManufacturerModelName = factory.Iterator(["Lorad"])
 
 
-for i, img in enumerate(MammographyExamFactory(num_images=12).images):
+for i, img in enumerate(
+    ExamFactory(num_images=16, image_dir="/Users/dcardoza/Dropbox/Media/Pictures/cyberpunk").images
+):
     img: pydicom.Dataset
-    img.save_as(f"image_{i}.dcm", write_like_original=False)
+    img.save_as(f"output/image_{i}.dcm", write_like_original=False)
