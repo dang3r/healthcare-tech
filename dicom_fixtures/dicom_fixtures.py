@@ -1,10 +1,10 @@
 import glob
+import os
 import string
 from dataclasses import dataclass
 from datetime import datetime
 from hashlib import md5
 from random import randint
-from re import I
 
 import factory
 import numpy as np
@@ -12,6 +12,8 @@ import pydicom
 from faker import Faker
 from PIL import Image
 
+dir_path = os.path.dirname(os.path.realpath(__file__))
+img_dir = os.path.join(dir_path, "images")
 faker = Faker()
 
 
@@ -25,15 +27,14 @@ class ImageFactory(factory.Factory):
         model = pydicom.Dataset
         strategy = factory.BUILD_STRATEGY
 
-    image_path = factory.Iterator(
-        glob.glob("/Users/dcardoza/dev/healthcare-tech/dicom_fixtures/images/*")
-    )
+    image_path = factory.Iterator(glob.glob(img_dir + "/*"))
 
+    # DICOM Attrs
     PatientID = factory.LazyFunction(
         lambda: "".join(string.ascii_lowercase[randint(0, 25)] for _ in range(10))
     )
-    PatientName = factory.LazyAttribute(faker("name"))
-    AccessionNumber = factory.LazyAttribtue(faker.md5(raw_output=False))
+    PatientName = factory.LazyAttribute(lambda _: faker.name())
+    AccessionNumber = factory.LazyAttribute(lambda _: faker.md5(raw_output=False))
     SOPInstanceUID = factory.LazyFunction(uid)
     SeriesInstanceUID = factory.LazyFunction(uid)
     StudyInstanceUID = factory.LazyFunction(uid)
@@ -49,10 +50,9 @@ class ImageFactory(factory.Factory):
 
     @classmethod
     def _build(cls, model_class, *args, **kwargs):
-        """Override the default ``_create`` with our custom call."""
         d = model_class()
         for k, v in kwargs.items():
-            if not k.startswith("_"):
+            if k not in set(["image_path"]):
                 setattr(d, k, v)
 
         file = kwargs.get("image_path")
@@ -115,7 +115,7 @@ class ExamFactory(factory.Factory):
         strategy = factory.BUILD_STRATEGY
 
     num_images = 4
-    image_dir = "/Users/dcardoza/dev/healthcare-tech/dicom_fixtures/images"
+    image_dir = img_dir
     image_paths = factory.LazyAttribute(lambda o: glob.glob(o.image_dir + "/*"))
 
     default_image_attrs = factory.Dict(
@@ -151,7 +151,7 @@ class ExamFactory(factory.Factory):
     @classmethod
     def _build(cls, model_class, *args, **kwargs):
         model = model_class()
-        attrs = {**kwargs.get("default_image_attrs"), **kwargs.get("image_attrs", {})}
+        attrs = {**kwargs.get("default_image_attrs"), **(kwargs.get("image_attrs") or {})}
         model.image_paths = kwargs["image_paths"]
         model.num_images = kwargs["num_images"]
         model.images = [
@@ -164,32 +164,22 @@ class ExamFactory(factory.Factory):
         return model
 
 
-# class MammographyExamFactory(ExamFactory):
-#    num_images = 4
-#
-#    # Exam Fields
-#
-#    Modality = "MG"
-#    StudyDescription = "BREAST IMAGING TOMOSYNTHESIS"
-#
-#    # Imaging Fields
-#    Manufacturer = factory.Iterator(["HOLOGIC, INC.", "GE", "SIEMENS"])
-#    ManufacturerModelName = factory.Iterator(["Lorad"])
-
-
 for i, img in enumerate(
     ExamFactory(
-        num_images=1,
+        num_images=0,
         image_dir="/Users/dcardoza/Dropbox/Media/Pictures/cyberpunk",
-        image_attrs={"PatientID": "12345"},
+        image_attrs={
+            "Modality": "MG",
+            "StudyDescription": "BREAST IMAGING TOMOSYNTHESIS",
+            "Manufacturer": "HOLOGIC, INC.",
+            "ManufacturerModelName": "LORAD",
+        },
     ).images
 ):
     img: pydicom.Dataset
-    print(img)
+    #    print(img)
     img.save_as(f"output/image_{i}.dcm", write_like_original=False)
 
-print(ExamFactory(num_images=1).images[0])
 
-im = ImageFactory()
-print(ImageFactory())
-print(ImageFactory())
+for img in ImageFactory.build_batch(12, PatientID="123456", Modality="MG", StudyDescription="LOL"):
+    print(img)
