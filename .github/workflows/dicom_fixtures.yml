@@ -1,0 +1,28 @@
+name: Run tests for the dicom_fixtures library
+
+on:
+  pull_request:
+    branches: [master]
+
+jobs:
+  dicom_fixtures_tests:
+    permissions:
+      contents: "read"
+      id-token: "write"
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Set up Python 3.7
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.7"
+      - name: Install python dependencies
+        run: |
+          cd dicom_fixtures
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+      - name: Run tests
+        run: |
+          cd dicom_fixtures
+          python3 -m pytest .
