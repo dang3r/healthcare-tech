@@ -223,26 +223,3 @@ class ExamFactory(factory.Factory):
             for i in range(model.num_images)
         ]
         return model
-
-
-if __name__ == "__main__":
-    for i, img in enumerate(
-        ExamFactory(
-            num_images=0,
-            image_dir="/Users/dcardoza/Dropbox/Media/Pictures/cyberpunk",
-            image_attrs={
-                "Modality": "MG",
-                "StudyDescription": "BREAST IMAGING TOMOSYNTHESIS",
-                "Manufacturer": "HOLOGIC, INC.",
-                "ManufacturerModelName": "LORAD",
-            },
-        ).images
-    ):
-        img: pydicom.Dataset
-        #    print(img)
-        img.save_as(f"output/image_{i}.dcm", write_like_original=False)
-
-    for img in ImageFactory.build_batch(
-        12, PatientID="123456", Modality="MG", StudyDescription="LOL"
-    ):
-        print(img)
