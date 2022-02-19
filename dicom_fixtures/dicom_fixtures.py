@@ -3,7 +3,6 @@ import os
 import string
 from dataclasses import dataclass
 from datetime import datetime
-from hashlib import md5
 from random import randint
 
 import factory
@@ -14,6 +13,7 @@ from PIL import Image
 
 dir_path = os.path.dirname(os.path.realpath(__file__))
 img_dir = os.path.join(dir_path, "images")
+imgs = glob.glob(img_dir + "/*")
 faker = Faker()
 
 
@@ -27,26 +27,86 @@ class ImageFactory(factory.Factory):
         model = pydicom.Dataset
         strategy = factory.BUILD_STRATEGY
 
-    image_path = factory.Iterator(glob.glob(img_dir + "/*"))
+    image_path = factory.Iterator(imgs)
 
-    # DICOM Attrs
+    # patient attrs
     PatientID = factory.LazyFunction(
         lambda: "".join(string.ascii_lowercase[randint(0, 25)] for _ in range(10))
     )
     PatientName = factory.LazyAttribute(lambda _: faker.name())
+    PatientSex = factory.Iterator(["F", "M"])
+    PatientBirthDate = factory.LazyAttribute(
+        lambda _: faker.date_of_birth(minimum_age=20, maximum_age=100).strftime("%Y%m%d")
+    )
+
+    IssuerOfPatientID = "FAKE INSTITUTION"
+    InstitutionName = factory.LazyAttribute(lambda o: o.IssuerOfPatientID + " Clinic 1")
+
+    # exam attrs
     AccessionNumber = factory.LazyAttribute(lambda _: faker.md5(raw_output=False))
     SOPInstanceUID = factory.LazyFunction(uid)
     SeriesInstanceUID = factory.LazyFunction(uid)
     StudyInstanceUID = factory.LazyFunction(uid)
     SOPClassUID = "1.2.840.10008.5.1.4.1.1.7"
-    PatientSex = "F"
-    PatientBirthDate = "19000101"
+
     StudyID = "1"
     SeriesNumber = "2"
     InstanceNumber = "3"
     StudyTime = "000000.000000"
-    Laterality = "R"
-    Modality = ""
+    Laterality = factory.Iterator(["", "L", "R"])
+
+    # Image
+    StudyDate = factory.LazyAttribute(
+        lambda _: faker.date_between(
+            datetime.strptime("1990-01-01", "%Y-%m-%d"),
+            datetime.strptime("2022-01-01", "%Y-%m-%d"),
+        ).strftime("%Y%m%d")
+    )
+    ContentDate = factory.LazyAttribute(lambda o: o.StudyDate)
+    ImageType = "ORIGINAL/PRIMARY"
+    Modality = factory.Iterator(
+        [
+            "CR",
+            "CT",
+            "MR",
+            "US",
+            "OT",
+            "BI",
+            "CD",
+            "DD",
+            "DG",
+            "ES",
+            "LS",
+            "PT",
+            "RG",
+            "ST",
+            "TG",
+            "XA",
+            "RF",
+            "RTIMAGE",
+            "RTDOSE",
+            "RTSTRUCT",
+            "RTPLAN",
+            "RTRECORD",
+            "HC",
+            "DX",
+            "NM",
+            "MG",
+            "IO",
+            "PX",
+            "GM",
+            "SM",
+            "XC",
+            "PR",
+            "AU",
+            "EPS",
+            "HD",
+            "SR",
+            "IVUS",
+            "OP",
+            "SMR",
+        ]
+    )
 
     @classmethod
     def _build(cls, model_class, *args, **kwargs):
@@ -89,6 +149,7 @@ class ImageFactory(factory.Factory):
                 print("NOT SETTING PIXEL DATA")
         d.file_meta = pydicom.Dataset()
         d.file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.7"
+        d.file_meta.MediaStorageSOPInstanceUID = d.SOPInstanceUID
         d.file_meta.TransferSyntaxUID = "1.2.840.10008.1.2.1"
         d.file_meta.ImplementationVersionName = "DCARDOZA"
         d.file_meta.ImplementationClassUID = "1.3.6.1.4.1.58139"
@@ -152,11 +213,11 @@ class ExamFactory(factory.Factory):
     def _build(cls, model_class, *args, **kwargs):
         model = model_class()
         attrs = {**kwargs.get("default_image_attrs"), **(kwargs.get("image_attrs") or {})}
-        model.image_paths = kwargs["image_paths"]
+        image_paths = kwargs["image_paths"]
         model.num_images = kwargs["num_images"]
         model.images = [
             ImageFactory(
-                image_path=model.image_paths[i % len(model.image_paths)],
+                image_path=image_paths[i % len(image_paths)],
                 **attrs,
             )
             for i in range(model.num_images)
@@ -164,22 +225,24 @@ class ExamFactory(factory.Factory):
         return model
 
 
-for i, img in enumerate(
-    ExamFactory(
-        num_images=0,
-        image_dir="/Users/dcardoza/Dropbox/Media/Pictures/cyberpunk",
-        image_attrs={
-            "Modality": "MG",
-            "StudyDescription": "BREAST IMAGING TOMOSYNTHESIS",
-            "Manufacturer": "HOLOGIC, INC.",
-            "ManufacturerModelName": "LORAD",
-        },
-    ).images
-):
-    img: pydicom.Dataset
-    #    print(img)
-    img.save_as(f"output/image_{i}.dcm", write_like_original=False)
+if __name__ == "__main__":
+    for i, img in enumerate(
+        ExamFactory(
+            num_images=0,
+            image_dir="/Users/dcardoza/Dropbox/Media/Pictures/cyberpunk",
+            image_attrs={
+                "Modality": "MG",
+                "StudyDescription": "BREAST IMAGING TOMOSYNTHESIS",
+                "Manufacturer": "HOLOGIC, INC.",
+                "ManufacturerModelName": "LORAD",
+            },
+        ).images
+    ):
+        img: pydicom.Dataset
+        #    print(img)
+        img.save_as(f"output/image_{i}.dcm", write_like_original=False)
 
-
-for img in ImageFactory.build_batch(12, PatientID="123456", Modality="MG", StudyDescription="LOL"):
-    print(img)
+    for img in ImageFactory.build_batch(
+        12, PatientID="123456", Modality="MG", StudyDescription="LOL"
+    ):
+        print(img)
