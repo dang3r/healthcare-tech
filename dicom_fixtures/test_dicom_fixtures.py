@@ -25,6 +25,8 @@ def test_exam():
         image_attrs=image_attrs,
     ).images
 
+    assert len(imgs) == 8
+
     for img in imgs:
         for attr, val in image_attrs.items():
             assert getattr(img, attr) == val
