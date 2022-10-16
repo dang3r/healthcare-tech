@@ -68,7 +68,7 @@ jobs:
       - name: Download all device text files, generate graph and persist graph to Google Cloud Storage.
         run: |
           cd medical-device-predicate-graph
-          gsutil -m cp --recursive 'gs://fda_devices/text/*' text
+          gsutil -m cp 'gs://fda_devices/text/*' text
           ./extract_predicates.sh text
           python3 analyze_graph.py
           gsutil -m cp  graph.json 'gs://fda_devices/graph.json'
