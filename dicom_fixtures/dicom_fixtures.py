@@ -18,11 +18,21 @@ faker = Faker()
 
 
 def uid() -> str:
+    """Generate a DICOM UID.
+
+    This issues my registered prefix of 1.3.6.4.1.58139 with an additional `.0`
+    for use by this project.
+
+    Returns:
+        str: The UID.
+    """
     # TODO: How to create a great UID function to minimize collisions?
-    return f"1.3.6.4.1.58139{randint(100000,99999999)}"
+    return f"1.3.6.4.1.58139.0.{randint(100000,99999999)}"
 
 
 class ImageFactory(factory.Factory):
+    """A factory for generating a pydicom.Dataset"""
+
     class Meta:
         model = pydicom.Dataset
         strategy = factory.BUILD_STRATEGY
@@ -39,6 +49,7 @@ class ImageFactory(factory.Factory):
         lambda _: faker.date_of_birth(minimum_age=20, maximum_age=100).strftime("%Y%m%d")
     )
 
+    # institution / clinic group attrd
     IssuerOfPatientID = "FAKE INSTITUTION"
     InstitutionName = factory.LazyAttribute(lambda o: o.IssuerOfPatientID + " Clinic 1")
 
@@ -55,7 +66,7 @@ class ImageFactory(factory.Factory):
     StudyTime = "000000.000000"
     Laterality = factory.Iterator(["", "L", "R"])
 
-    # Image
+    # image attrs
     StudyDate = factory.LazyAttribute(
         lambda _: faker.date_between(
             datetime.strptime("1990-01-01", "%Y-%m-%d"),
@@ -110,11 +121,26 @@ class ImageFactory(factory.Factory):
 
     @classmethod
     def _build(cls, model_class, *args, **kwargs):
+        """Build pydicom dataset
+
+        Args:
+            cls (ImageFactory) : The factory
+            model_class (pydicom.Dataset) : the dataset to modify
+            *args : list of arguments
+            **kwargs : dict of keyword arguments
+
+        Returns:
+            pydicom.Dataset : The modified dataset
+        """
+
+        #  Set all additional keyword attributes
         d = model_class()
         for k, v in kwargs.items():
-            if k not in set(["image_path"]):
+            # Don't set image_path because it is not an attribute of a dataset
+            if k != "image_path":
                 setattr(d, k, v)
 
+        # Load an image if provided
         file = kwargs.get("image_path")
         if file:
             im_frame = Image.open(file)
@@ -146,7 +172,9 @@ class ImageFactory(factory.Factory):
                 d.PlanarConfiguration = 0
                 d.PixelData = np_frame.tobytes()
             else:
-                print("NOT SETTING PIXEL DATA")
+                print("WARNING: Not setting the pixel data")
+
+        # The dicom file_metadata. Not copied by default.
         d.file_meta = pydicom.Dataset()
         d.file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.7"
         d.file_meta.MediaStorageSOPInstanceUID = d.SOPInstanceUID
@@ -161,6 +189,8 @@ class ImageFactory(factory.Factory):
 
 @dataclass
 class Exam:
+    """A class representing an exam containing multiple medical images"""
+
     num_images: int = 0
     images: list = None
     image_dir: str = ""
@@ -179,6 +209,7 @@ class ExamFactory(factory.Factory):
     image_dir = img_dir
     image_paths = factory.LazyAttribute(lambda o: glob.glob(o.image_dir + "/*"))
 
+    # Default image attributes shared by all images in an exam
     default_image_attrs = factory.Dict(
         {
             "PatientID": factory.LazyAttribute(lambda _: faker.md5(raw_output=False)),
@@ -212,6 +243,8 @@ class ExamFactory(factory.Factory):
     @classmethod
     def _build(cls, model_class, *args, **kwargs):
         model = model_class()
+
+        # Merge all image-level attributes
         attrs = {**kwargs.get("default_image_attrs"), **(kwargs.get("image_attrs") or {})}
         image_paths = kwargs["image_paths"]
         model.num_images = kwargs["num_images"]
