@@ -36,7 +36,7 @@ jobs:
       - name: Install linux dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install poppler-utils ocrmypdf
+          sudo apt-get install -y poppler-utils ocrmypdf pcregrep
       - id: "auth"
         name: "Authenticate to Google Cloud"
         uses: "google-github-actions/auth@v0"
@@ -66,3 +66,10 @@ jobs:
           path: "medical-device-predicate-graph/text"
           destination: "fda_devices/text"
           parent: "false"
+      - name: Download all device text files, generate graph and persist graph to Google Cloud Storage.
+        run: |
+          cd medical-device-predicate-graph
+          ./extract_predicates text
+          gsutil -m cp --recursive 'gs://fda_devices/text/*' text
+          python3 analyze_graph.py
+          gsutil -m cp  graph.json 'gs://fda_devices/graph.json'
