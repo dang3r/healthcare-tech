@@ -1,7 +1,6 @@
 name: Downloading and uploading FDA 510k Device Summaries
 
 on:
-  # Only run when the medical-device-predicate-graph project changes
   push:
     paths:
       - "medical-device-predicate-graph/**"

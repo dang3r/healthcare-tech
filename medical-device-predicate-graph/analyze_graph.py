@@ -11,6 +11,7 @@ def get_cycles(g: nx.DiGraph) -> None:
 
 
 if __name__ == "__main__":
+    """Extract edges from file and output a json file containing the device graph"""
     g = nx.DiGraph()
     with open("edges.txt") as f:
         for line in f.readlines():
