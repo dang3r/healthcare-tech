@@ -1,10 +1,9 @@
 name: Downloading and uploading FDA 510k Device Summaries
 
 on:
-  # Only run when we change the extract scripts
   push:
     paths:
-      - "medical-device-predicate-graph/*.py"
+      - "medical-device-predicate-graph/**"
 
   # Run at 1:11 AM UTC on Sat / 8:11 PM EST on Fri
   schedule:
@@ -36,7 +35,7 @@ jobs:
       - name: Install linux dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install poppler-utils ocrmypdf
+          sudo apt-get install -y poppler-utils ocrmypdf pcregrep
       - id: "auth"
         name: "Authenticate to Google Cloud"
         uses: "google-github-actions/auth@v0"
@@ -66,3 +65,10 @@ jobs:
           path: "medical-device-predicate-graph/text"
           destination: "fda_devices/text"
           parent: "false"
+      - name: Download all device text files, generate graph and persist graph to Google Cloud Storage.
+        run: |
+          cd medical-device-predicate-graph
+          gsutil -m cp 'gs://fda_devices/text/*' text
+          ./extract_predicates.sh text
+          python3 analyze_graph.py
+          gsutil -m cp  graph.json 'gs://fda_devices/graph.json'
