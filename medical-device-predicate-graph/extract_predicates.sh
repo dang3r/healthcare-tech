@@ -4,7 +4,12 @@
 
 TEXT_DIRECTORY="$1"
 
-find text -name '*.pdf.txt' | {
+# If directory doesn't exist or is empty, return a successful exit code
+if [ ! -d "$TEXT_DIRECTORY" ] || [ -z "$(ls -A $TEXT_DIRECTORY)" ]; then
+    exit 0
+fi 
+
+find "$TEXT_DIRECTORY" -name '*.pdf.txt' | {
     # Extract all device-like names from the text
     # Eg. K123312, DEN132123
     xargs -P 1 pcregrep -o1 '((K|DEN|P|PMA)\d{5,})'
