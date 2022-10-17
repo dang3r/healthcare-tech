@@ -1,6 +1,8 @@
 import click
 from pydicom.filewriter import write_file_meta_info
-from pynetdicom import AE, evt, AllStoragePresentationContexts
+from pynetdicom import AE, evt, AllStoragePresentationContexts, debug_logger
+
+debug_logger()
 
 @click.command()
 @click.option("--pdu-size", "-p", type=int, default=16384)
@@ -18,8 +20,10 @@ def main(pdu_size: int, maximum_associations: int) -> None:
             return 0x0000
         except Exception as err:
             print(err)
+    def handle_echo(event):
+        return 0
     print("Maximum pdu size is", pdu_size)
-    handlers = [(evt.EVT_C_STORE, handle_store)]
+    handlers = [(evt.EVT_C_STORE, handle_store), (evt.EVT_C_ECHO, handle_echo)]
     ae = AE("DC_SCP")
     ae.maximum_associations = maximum_associations
     ae.maximum_pdu_size  = pdu_size

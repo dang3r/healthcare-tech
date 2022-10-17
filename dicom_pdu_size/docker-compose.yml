@@ -6,4 +6,4 @@ services:
       - 11112:11112
     volumes:
       - ./server_data:/server_data
-    command: --pdu-size=${MAXIMUM_PDU_SIZE:-1000000}
+        #    command: --pdu-size=${MAXIMUM_PDU_SIZE:-1000000}
