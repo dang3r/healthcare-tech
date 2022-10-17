@@ -2,7 +2,10 @@ name: Run tests for the dicom_fixtures library
 
 on:
   pull_request:
-    branches: [master]
+    branches:
+      - master
+    paths:
+      - dicom_fixtures/**
 
 jobs:
   dicom_fixtures_tests:
